@@ -13,13 +13,16 @@ public class Server {
 
 		if (VMID == 1) {
 			float current_time = SL.getTime();
-			System.err.println(current_time);
+
+			if (current_time == 0) {
+				for (int i = 0; i < 3; i ++)
+			}
+
 			if (current_time == 6) {
 				for (int i = 0; i < 1; i ++) {
 					SL.startVM();
 				}
 			}
-
 
 			else if (current_time == 8) {
 				for (int i = 0; i < 3; i ++) {

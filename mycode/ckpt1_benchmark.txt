@@ -1,8 +1,19 @@
+t = 0, sss = 1000
+# server = 1, 
+# server = 2, 
+# server = 3, 
+# server = 4, 
+# server = 5, 
+# server = 6, 
+# server = 7, 
+# server = 8, 
+# server = 9, 
+# server = 10, 
+
 t = 6, sss = 3000
 # server = 1, {purchased=1, ok=5, timeout=3}
 # server = 2, {purchased=3, ok=6}
 # server = 3, 
-
 
 
 t = 8, sss = 1000
