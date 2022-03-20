@@ -1,0 +1,14 @@
+t = 6, sss = 3000
+# server = 1, {purchased=1, ok=5, timeout=3}
+# server = 2,
+# server = 3, 
+
+
+
+t = 8, sss = 1000
+# server = 1, {ok=3, timeout=26}
+# server = 3, {purchased=12, ok=10, timeout=7}
+# server = 4, {purchased=14, ok=11, timeout=4}
+# server = 5, {purchased=15, ok=11, timeout=3}
+
+
