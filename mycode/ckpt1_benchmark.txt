@@ -1,11 +1,11 @@
 t = 0, sss = 1000
-# server = 1, 
-# server = 2, 
-# server = 3, 
-# server = 4, 
-# server = 5, 
-# server = 6, 
-# server = 7, 
+# server = 1, {ok=3, timeout=26} {ok=3, timeout=26} {ok=3, timeout=26}
+# server = 2, {purchased=7, ok=5, timeout=17} {purchased=7, ok=5, timeout=17} {purchased=7, ok=5, timeout=17} 
+# server = 3, {purchased=12, ok=10, timeout=7} {purchased=12, ok=10, timeout=7}
+# server = 4, {purchased=14, ok=11, timeout=4} {purchased=14, ok=11, timeout=4}
+# server = 5, {purchased=15, ok=11, timeout=3}
+# server = 6, {purchased=15, ok=11, timeout=3} {purchased=15, ok=11, timeout=3}
+# server = 7, {purchased=15, ok=11, timeout=3} {purchased=14, ok=11, timeout=4} {purchased=14, ok=10, timeout=5}
 # server = 8, 
 # server = 9, 
 # server = 10, 

@@ -15,10 +15,12 @@ public class Server {
 			float current_time = SL.getTime();
 
 			if (current_time == 0) {
-				for (int i = 0; i < 3; i ++)
+				for (int i = 0; i < 7; i ++) {
+					SL.startVM();
+				}
 			}
 
-			if (current_time == 6) {
+			else if (current_time == 6) {
 				for (int i = 0; i < 1; i ++) {
 					SL.startVM();
 				}
