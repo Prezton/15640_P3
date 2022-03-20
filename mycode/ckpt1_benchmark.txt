@@ -1,6 +1,6 @@
 t = 6, sss = 3000
 # server = 1, {purchased=1, ok=5, timeout=3}
-# server = 2,
+# server = 2, {purchased=3, ok=6}
 # server = 3, 
 
 
@@ -8,7 +8,16 @@ t = 6, sss = 3000
 t = 8, sss = 1000
 # server = 1, {ok=3, timeout=26}
 # server = 3, {purchased=12, ok=10, timeout=7}
-# server = 4, {purchased=14, ok=11, timeout=4}
+# server = 4, {purchased=14, ok=11, timeout=4} Y
 # server = 5, {purchased=15, ok=11, timeout=3}
 
+
+t = 19, sss = 740
+# server = 1, all timtout
+# server = 2, {purchased=3, ok=1, timeout=36}
+# server = 3, {purchased=9, ok=8, timeout=23}
+# server = 4, {purchased=16, ok=13, timeout=11}
+# server = 5, {purchased=19, ok=12, timeout=9} Y
+# server = 6, {purchased=19, ok=13, timeout=8}
+# server = 7,
 
