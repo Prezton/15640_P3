@@ -19,6 +19,10 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	
 	public static String master_name = "/MAIN_SERVER9";
 
+	public static final int INIT_FRONTEND = 0;
+
+	public static final int INIT_APPTIER = 0;
+
 
 	// Server load: request per server
 	// Request queue length
@@ -81,6 +85,29 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	}
 
+	public static void run_master() {
+
+	}
+
+	public static int scale_out() {
+		return 0;
+	}
+
+	public static int scale_back() {
+		return 0;
+	}
+
+	public static boolean add_frontend(ServerLib SL) {
+		int new_vmid = SL.startVM();
+		frontend_servers.put(new_vmid, true);
+		return true;
+	}
+
+	public static boolean add_apptier(ServerLib SL) {
+		int new_vmid = SL.startVM();
+		app_servers.put(new_vmid, true);
+		return true;
+	}
 
 
 
@@ -95,14 +122,16 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		int init_master_result = init_master(ip, port);
 		// Bind master servers
 		if (init_master_result == -1) {
+
 			// Get master server RMI
 			master = (MasterInterface) Naming.lookup(master_name);
 			String server_name = "/SERVER9_" + VMID;
 			server_name = "//" + ip + ":" + port + server_name;
 			Server srv = null;
+
+			// Bind non-master servers
 			try {
 				srv = new Server();
-				// Bind non-master servers
 				Naming.rebind(server_name, srv);
 			} catch (RemoteException e) {
 				System.err.println("EXCEPTION in binding non-master servers");
@@ -118,6 +147,8 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 			} else if (role_flag == 1) {
 				run_apptier();
 			}
+		} else {
+			run_master();
 		}
 
 
