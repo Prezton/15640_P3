@@ -8,13 +8,13 @@ import java.util.concurrent.*;
 public class Server extends UnicastRemoteObject {
 
 	// Request queue, maintained by master server
-	public static Queue request_queue;
+	public static ArrayBlockingQueue<Cloud.FrontEndOps.Request> request_queue;
 
 	// A list of frontend servers, containing VMIDs
-	public static Map<Integer, boolean> frontend_servers;
+	public static Map<Integer, Boolean> frontend_servers;
 
 	// A list of app servers, containing VMIDs
-	public static Map<Integer, boolean> app_servers;
+	public static Map<Integer, Boolean> app_servers;
 	
 
 
@@ -28,15 +28,31 @@ public class Server extends UnicastRemoteObject {
 	// CKPT2 arrival rates are also fixed
 	// Pay some attention to heavily tailed distribution
 	// Unhappy clients are more important?
-    public Server() {
+    public Server() throws RemoteException {
 		super();
     }
 
 	/**
      * @brief Initialize master server, RMI registration, etc
-     * @return 1 on success, else errno
+     * @return 0 on success, else errno
      */
-	public static int init_master() {
+	public static int init_master(int port) {
+		frontend_servers = new ConcurrentHashMap<Integer, Boolean>();
+		app_servers = new ConcurrentHashMap<Integer, Boolean>();
+		request_queue = new ArrayBlockingQueue<Cloud.FrontEndOps.Request>(Integer.MAX_VALUE);
+		String master_name = "MAIN_SERVER_9";
+
+		try {
+			Server srv = new Server();
+            LocateRegistry.createRegistry(port);
+            Naming.rebind(master_name, srv);
+
+        } catch(Exception e) {
+            System.err.println("An exception in Master INIT!");
+            e.printStackTrace();
+			return -1;
+        }
+		return 0;
 
 	}
 
@@ -45,36 +61,20 @@ public class Server extends UnicastRemoteObject {
 
 	public static void main ( String args[] ) throws Exception {
 		// if (args.length != 3) throw new Exception("Need 3 args: <cloud_ip> <cloud_port> <VM id>");
-		ServerLib SL = new ServerLib( args[0], Integer.parseInt(args[1]) );
+
+		String ip = args[0];
+		int port = Integer.parseInt(args[1]);
+		ServerLib SL = new ServerLib( args[0],  port );
 		int VMID = Integer.parseInt(args[2]);
 
 		if (VMID == 1) {
-			float current_time = SL.getTime();
-
-			if (current_time == 0) {
-				for (int i = 0; i < 8; i ++) {
-					SL.startVM();
-				}
+			int init_master_result = init_master(port);
+			if (init_master_result == -1) {
+				System.err.println("ERROR WHEN INITIALIZING MASTER SERVER, VMID: " + VMID);
 			}
-
-			else if (current_time == 6) {
-				for (int i = 0; i < 1; i ++) {
-					SL.startVM();
-				}
-			}
-
-			else if (current_time == 8) {
-				for (int i = 0; i < 3; i ++) {
-					SL.startVM();
-				}
-			}
+		} else {
+			Server srv = new Server();
 			
-			else if (current_time == 19) {
-				for (int i = 0; i < 4; i ++) {
-					SL.startVM();
-				}
-			}
-
 		}
 		
 		// register with load balancer so requests are sent to this server
