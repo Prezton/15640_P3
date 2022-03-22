@@ -6,8 +6,8 @@ t = 0, sss = 1000
 # server = 5, {purchased=15, ok=11, timeout=3}
 # server = 6, {purchased=15, ok=11, timeout=3} {purchased=15, ok=11, timeout=3}
 # server = 7, {purchased=15, ok=11, timeout=3} {purchased=14, ok=11, timeout=4} {purchased=14, ok=10, timeout=5}
-# server = 8, 
-# server = 9, 
+# server = 8, {purchased=14, ok=11, timeout=4}
+# server = 9, {purchased=13, ok=11, timeout=5}
 # server = 10, 
 
 t = 6, sss = 3000
