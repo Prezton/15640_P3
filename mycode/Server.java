@@ -9,7 +9,7 @@ import java.util.concurrent.*;
 public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	// Request queue, maintained by master server
-	public static ArrayBlockingQueue<Cloud.FrontEndOps.Request> request_queue;
+	public static LinkedBlockingQueue<Cloud.FrontEndOps.Request> request_queue;
 
 	// A list of frontend servers, containing VMIDs
 	public static Map<Integer, Boolean> frontend_servers;
@@ -17,7 +17,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	// A list of app servers, containing VMIDs
 	public static Map<Integer, Boolean> app_servers;
 	
-	public static String master_name = "/MAIN_SERVER9";
+	public static String master_name = "/MAIN_SERVER";
 
 	public static final int INIT_FRONTEND = 0;
 
@@ -49,12 +49,10 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		try {
 			master_name = "//" + ip + ":" + port + master_name;
 			Server srv = new Server();
-            LocateRegistry.createRegistry(port);
-            Naming.rebind(master_name, srv);
+            Naming.bind(master_name, srv);
 
 
         } catch(Exception e) {
-            System.err.println("NOT MASTER OR MASTER EXCEPTION");
             // e.printStackTrace();
 			return -1;
         }
@@ -62,7 +60,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		// INIT 2 maps and 1 queue for master server
 		frontend_servers = new ConcurrentHashMap<Integer, Boolean>();
 		app_servers = new ConcurrentHashMap<Integer, Boolean>();
-		request_queue = new ArrayBlockingQueue<Cloud.FrontEndOps.Request>(Integer.MAX_VALUE);
+		request_queue = new LinkedBlockingQueue<Cloud.FrontEndOps.Request>();
 		return 0;
 
 	}
@@ -82,15 +80,14 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	public static void run_frontend(MasterInterface master) {
 
 		while (true) {
-			if (SL.getQueueLength() > 0) {
-				Cloud.FrontEndOps.Request req = SL.getNextRequest();
-				try {
-					master.add_request(req);
-				} catch (RemoteException e) {
-					System.err.println("run_frontend(): add_request() exeception");
-					e.printStackTrace();
-				}
+			Cloud.FrontEndOps.Request req = SL.getNextRequest();
+			try {
+				master.add_request(req);
+			} catch (RemoteException e) {
+				System.err.println("run_frontend(): add_request() exeception");
+				e.printStackTrace();
 			}
+			
 		}
 
 	}
@@ -102,8 +99,8 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 			try {
 				req = master.get_request();
 			} catch (RemoteException e) {
-				System.err.println("run_apptier(): get_request() exeception");
-				e.printStackTrace();
+				// System.err.println("run_apptier(): get_request() exeception");
+				// e.printStackTrace();
 			}
 			if (req != null) {
 				SL.processRequest(req);
@@ -112,8 +109,12 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	}
 
-	public static void run_master(MasterInterface master) {
-
+	public static void run_master() {
+		while (true) {
+			Cloud.FrontEndOps.Request req = SL.getNextRequest();
+			request_queue.offer(req);
+			
+		}
 	}
 
 	public static int scale_out() {
@@ -186,26 +187,26 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		if (init_master_result == -1) {
 
 			// Get master server RMI
-			System.out.println("Master name is: " + master_name);
 			master = (MasterInterface) Naming.lookup(master_name);
-			String server_name = "/SERVER9_" + VMID;
+			String server_name = "/SERVER_" + VMID;
 			server_name = "//" + ip + ":" + port + server_name;
 			Server srv = null;
 
 			// Bind non-master servers
 			try {
 				srv = new Server();
-				Naming.rebind(server_name, srv);
+				Naming.bind(server_name, srv);
 			} catch (RemoteException e) {
 				System.err.println("EXCEPTION in binding non-master servers");
 				e.printStackTrace();
 			}
+			System.out.println("Non Master Server!");
 		} else {
 			// register master server as frontend
 			SL.register_frontend();
 			frontend_servers.put(VMID, true);
+			System.out.println("MASTER BOOST SERVERS");
 			boost_servers();
-
 		}
 
 		// master != null indicates non-master servers
@@ -219,7 +220,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 				run_apptier(master);
 			}
 		} else {
-			run_master(master);
+			run_master();
 		}
 
 
