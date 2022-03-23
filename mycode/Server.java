@@ -19,7 +19,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	
 	public static String master_name = "/MAIN_SERVER";
 
-	public static final int INIT_FRONTEND = 0;
+	public static final int INIT_FRONTEND = 1;
 
 	public static final int INIT_APPTIER = 3;
 
@@ -200,7 +200,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 				System.err.println("EXCEPTION in binding non-master servers");
 				e.printStackTrace();
 			}
-			System.out.println("Non Master Server!");
+			System.out.print("Non Master Server: ");
 		} else {
 			// register master server as frontend
 			SL.register_frontend();
@@ -212,9 +212,9 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		// master != null indicates non-master servers
 		if (master != null) {
 			int role_flag = master.get_role(VMID);
+			System.out.println(role_flag);
 			if (role_flag == 0) {
 				SL.register_frontend();
-				frontend_servers.put(VMID, true);
 				run_frontend(master);
 			} else if (role_flag == 1) {
 				run_apptier(master);
