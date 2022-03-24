@@ -19,9 +19,13 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	public static final int INIT_FRONTEND = 0;
 
-	public static final int INIT_APPTIER = 2;
+	public static final int INIT_APPTIER = 1;
 
 	public static ServerLib SL;
+
+	public static final int FRONT_THROUGHPUT = 0;
+
+	public static final double APP_THROUGHPUT = 1.70;
 
 
 	// Server load: request per server
@@ -101,7 +105,6 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	}
 
 	public static void run_apptier(MasterInterface master) {
-
 		while (true) {
 			Cloud.FrontEndOps.Request req = null;
 			try {
@@ -128,20 +131,32 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 			// long t1 = System.currentTimeMillis();
 			// Cloud.FrontEndOps.Request req = SL.getNextRequest();
 			// time += (System.currentTimeMillis() - t1);
-			// SL.processRequest(req);
+			// // SL.processRequest(req);
 			// count += 1;
 			SL.dropHead();
 		}
 
 		// time = 1820, count = 7, time = 1828, count = 7, time = 1838, count = 7
-		System.out.println("Time is: " + time + ", count is: " + count);
+		// System.out.println("Time is: " + time + ", count is: " + count);
 		
+		long previous_time = 0;
 		while (true) {
 			long t1 = System.currentTimeMillis();
 
 			Cloud.FrontEndOps.Request req = SL.getNextRequest();
 			request_queue.offer(req);
-			System.out.println("Master time: " + (System.currentTimeMillis() - t1));
+			System.out.println("QUEUE SIZE: " + request_queue.size());
+
+			if (request_queue.size() > APP_THROUGHPUT * app_servers.size()) {
+				long current_time = System.currentTimeMillis();
+				// COOLDOWN MECHANISM
+				if (current_time - previous_time > 4000) {
+					int num = request_queue.size() / 3;
+					System.out.println("potential adding num: " + num);
+					add_apptier();
+					previous_time = current_time;
+				}
+			}
 
 			
 		}
@@ -162,6 +177,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	}
 
 	public static boolean add_apptier() {
+		System.out.println("ADD A NEW APP TIER SERVER");
 		int new_vmid = SL.startVM();
 		app_servers.put(new_vmid, true);
 		return true;
