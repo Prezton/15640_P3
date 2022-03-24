@@ -17,9 +17,9 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	
 	public static String master_name = "/MAIN_SERVER";
 
-	public static final int INIT_FRONTEND = 1;
+	public static final int INIT_FRONTEND = 3;
 
-	public static final int INIT_APPTIER = 1;
+	public static final int INIT_APPTIER = 4;
 
 	public static ServerLib SL;
 
@@ -74,12 +74,12 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	}
 
 	public static int boost_servers() {
-		app_servers.put(SL.startVM(), true);
+		// app_servers.put(SL.startVM(), true);
 		// int num_app = get_init_app();
 		// System.out.println("Estimated app servers: " + num_app);
-		// for (int i = 0; i < num_app; i++) {
-		// 	app_servers.put(SL.startVM(), true);
-		// }
+		for (int i = 0; i < INIT_APPTIER; i++) {
+			app_servers.put(SL.startVM(), true);
+		}
 
 		for (int i = 0; i < INIT_FRONTEND; i++) {
 			frontend_servers.put(SL.startVM(), true);
@@ -128,43 +128,13 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	public static void run_master() {
 		System.out.println("MASTER WORKING PROPERLY");
-		int count = 0;
-		long previous_time = 0;
-
 		while (SL.getStatusVM​(2) != Cloud.CloudOps.VMStatus.Running) {
 			SL.dropHead();
-			count += 1;
-			if (count > APP_THROUGHPUT * app_servers.size()) {
-				long current_time = System.currentTimeMillis();
-				// COOLDOWN MECHANISM
-				if (current_time - previous_time > 4000) {
-					int num = count / 3;
-					System.out.println("potential adding num: " + num);
-					add_apptier();
-					previous_time = current_time;
-				}
-				count = 0;
-			}
 		}
-		
 		while (true) {
-			long t1 = System.currentTimeMillis();
 
 			Cloud.FrontEndOps.Request req = SL.getNextRequest();
 			request_queue.offer(req);
-			System.out.println("QUEUE SIZE: " + request_queue.size());
-
-			if (request_queue.size() > APP_THROUGHPUT * app_servers.size()) {
-				long current_time = System.currentTimeMillis();
-				// COOLDOWN MECHANISM
-				if (current_time - previous_time > 4000) {
-					int num = request_queue.size() / 3;
-					System.out.println("potential adding num: " + num);
-					add_apptier();
-					previous_time = current_time;
-				}
-			}
-
 			
 		}
 	}
