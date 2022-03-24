@@ -1,8 +1,6 @@
 import java.io.*;
 import java.util.*;
 import java.rmi.*;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.*;
 
@@ -36,6 +34,11 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	// CKPT2 arrival rates are also fixed
 	// Pay some attention to heavily tailed distribution
 	// Unhappy clients are more important?
+
+
+	// Drop some requests at the begining
+	// Should depend mainly on client arrival rate to decide scaling
+	// At the beginning, it may be a good idea to have a server act as both frontend and app tier servers
     public Server() throws RemoteException {
 		super();
     }
@@ -78,11 +81,15 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 
 	public static void run_frontend(MasterInterface master) {
-
+		System.out.println("FRONTEND WORKING PROPERLY");
 		while (true) {
+			long t1 = System.currentTimeMillis();
 			Cloud.FrontEndOps.Request req = SL.getNextRequest();
 			try {
 				master.add_request(req);
+				long t2 = System.currentTimeMillis();
+				long t = t2 - t1;
+				System.out.println(t);
 			} catch (RemoteException e) {
 				System.err.println("run_frontend(): add_request() exeception");
 				e.printStackTrace();
@@ -98,21 +105,28 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 			Cloud.FrontEndOps.Request req = null;
 			try {
 				req = master.get_request();
+				if (req != null) {
+					SL.processRequest(req);
+				}
 			} catch (RemoteException e) {
 				// System.err.println("run_apptier(): get_request() exeception");
 				// e.printStackTrace();
 			}
-			if (req != null) {
-				SL.processRequest(req);
-			}
+
 		}
 
 	}
 
 	public static void run_master() {
+		System.out.println("MASTER WORKING PROPERLY");
+
 		while (true) {
+			long t1 = System.currentTimeMillis();
+
 			Cloud.FrontEndOps.Request req = SL.getNextRequest();
 			request_queue.offer(req);
+			System.out.println("Master time: " + (System.currentTimeMillis() - t1));
+
 			
 		}
 	}
@@ -171,6 +185,52 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		request_queue.offer(req);
 	}
 
+	// /**
+    //  * @brief Add server to master's state map, executed by master server. NOTE: not responsible for SL.startVM()
+    //  * @param vmid server vm id
+	//  * @param server_type 0 for frontend, 1 for app tier
+    //  */
+	// public void add_server(int vmid, int server_type) throws RemoteException {
+	// 	if (server_type == 0) {
+	// 		if (!frontend_servers.containsKey(vmid)) {
+	// 			frontend_servers.put(vmid, true);
+	// 		}
+	// 	} else if (server_type == 1) {
+	// 		if (!app_servers.containsKey(vmid)) {
+	// 			app_servers.put(vmid, true);
+	// 		}
+	// 	}
+	// }
+
+	// /**
+    //  * @brief Add server to master's state map, executed by master server. NOTE: not responsible for SL.endVM()
+    //  * @param vmid server vm id
+	//  * @param server_type 0 for frontend, 1 for app tier
+    //  */
+	// public void remove_server(int vmid, int int server_type) throws RemoteException {
+	// 	if (server_type == 0) {
+	// 		if (frontend_servers.containsKey(vmid)) {
+	// 			frontend_servers.remove(vmid);
+	// 		}
+	// 	} else if (server_type == 1) {
+	// 		if (app_servers.containsKey(vmid)) {
+	// 			app_servers.remove(vmid);
+	// 		}
+	// 	}
+	// }
+
+	// /**
+    //  * @brief scale out by calling startVM()
+	//  * @param server_type 0 for frontend, 1 for app tier
+    //  */
+	// public void scale_out(int server_type) throws RemoteException {
+	// 	int vmid = SL.startVM();
+	// 	if (server_type == 0) {
+	// 		frontend_servers.put(vmid, true);
+	// 	} else {
+	// 		app_servers.put(vmid, true)
+	// 	}
+	// }
 
 
 	public static void main ( String args[] ) throws Exception {
