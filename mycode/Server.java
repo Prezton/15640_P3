@@ -17,9 +17,9 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	
 	public static String master_name = "/MAIN_SERVER";
 
-	public static final int INIT_FRONTEND = 1;
+	public static final int INIT_FRONTEND = 0;
 
-	public static final int INIT_APPTIER = 3;
+	public static final int INIT_APPTIER = 2;
 
 	public static ServerLib SL;
 
@@ -39,6 +39,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	// Drop some requests at the begining
 	// Should depend mainly on client arrival rate to decide scaling
 	// At the beginning, it may be a good idea to have a server act as both frontend and app tier servers
+	// Test some static configuration first and test with changed loads
     public Server() throws RemoteException {
 		super();
     }
@@ -120,6 +121,21 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	public static void run_master() {
 		System.out.println("MASTER WORKING PROPERLY");
 
+		int count = 0;
+		long time = 0;
+		// Have the master server act as both frontend and app tier at the beginning to reduce timeout requests
+		while (SL.getStatusVM​(2) != Cloud.CloudOps.VMStatus.Running) {
+			// long t1 = System.currentTimeMillis();
+			// Cloud.FrontEndOps.Request req = SL.getNextRequest();
+			// time += (System.currentTimeMillis() - t1);
+			// SL.processRequest(req);
+			// count += 1;
+			SL.dropHead();
+		}
+
+		// time = 1820, count = 7, time = 1828, count = 7, time = 1838, count = 7
+		System.out.println("Time is: " + time + ", count is: " + count);
+		
 		while (true) {
 			long t1 = System.currentTimeMillis();
 
