@@ -4,6 +4,7 @@ import java.rmi.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.*;
 
+
 public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	// Request queue, maintained by master server
@@ -79,11 +80,10 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	public static int boost_servers() {
 		app_servers.put(SL.startVM(), true);
-		// int num_app = get_init_app();
-		// System.out.println("Estimated extra app servers: " + num_app);
-		// for (int i = 0; i < num_app; i++) {
-		// 	app_servers.put(SL.startVM(), true);
-		// }
+		int num_app = get_init_app();
+		for (int i = 0; i < num_app; i++) {
+			app_servers.put(SL.startVM(), true);
+		}
 
 		for (int i = 0; i < INIT_FRONTEND; i++) {
 			frontend_servers.put(SL.startVM(), true);
@@ -119,7 +119,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 				if (req == null) {
 					miss_count += 1;
 					if (miss_count == APP_SCALEIN_THREASHOLD) {
-						// remove_server(master, VMID, 1);
+						remove_server(master, VMID, 1);
 						miss_count = 0;
 					}
 				} else {
@@ -158,24 +158,26 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		int count = 0;
 		long previous_time = 0;
 		long test_mark1 = System.currentTimeMillis();
+		int new_servers = 0;
 
-		// This booting takes ~5 second
-		while (SL.getStatusVM​(2) != Cloud.CloudOps.VMStatus.Running) {
-			SL.getNextRequest();
-			count += 1;
-			System.out.println("COUNTIS: " + count);
+		// This booting takes ~5 second, 500 ms: 3 app servers, 300 ms 4 app servers
+		while (SL.getStatusVM​(2) == Cloud.CloudOps.VMStatus.Booting) {
+			SL.dropHead();
+			// count += 1;
+			// System.out.println("COUNTIS: " + count);
 
-			if (count > 4) {
+			// if (count > 4) {
 
-				long current_time = System.currentTimeMillis();
-				// COOLDOWN MECHANISM
-				// if (current_time - previous_time > 4000) {
-					System.out.println("BOOTING: " + (APP_THROUGHPUT * app_servers.size()));
-					add_apptier();
-					previous_time = current_time;
-				// }
-				count = 0;
-			}
+			// 	long current_time = System.currentTimeMillis();
+			// 	// COOLDOWN MECHANISM
+			// 	// if (current_time - previous_time > 4000) {
+			// 		System.out.println("BOOTING: " + (APP_THROUGHPUT * app_servers.size()));
+			// 		add_apptier();
+			// 		new_servers += 1;
+			// 		previous_time = current_time;
+			// 	// }
+			// 	count = 0;
+			// }
 		}
 		System.out.println("BOOT TIME: " + (System.currentTimeMillis() - test_mark1));
 		
@@ -204,14 +206,13 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		long time = 0;
 		// Have the master server act as both frontend and app tier at the beginning to reduce timeout requests
 
+		// while (SL.getStatusVM​(2) != Cloud.CloudOps.VMStatus.Running) {
 		if (SL.getStatusVM​(2) != Cloud.CloudOps.VMStatus.Running) {
 			Cloud.FrontEndOps.Request req1 = SL.getNextRequest();
 			long t1 = System.currentTimeMillis();
-			SL.dropHead();
 			Cloud.FrontEndOps.Request req2 = SL.getNextRequest();
 			long t2 = System.currentTimeMillis();
 			count += 1;
-			SL.dropHead();
 			time += (t2 - t1);
 		}
 
@@ -220,8 +221,13 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		int inter_arrival_time = (int)time / count;
 		System.out.println(count + ", " + time + ", inter_arrival_time is: " + inter_arrival_time);
 
-		int num = (1000 / inter_arrival_time) * 2 / 3;
-
+		int num = 0;
+		if (inter_arrival_time >= 400) {
+			num = (1000 / inter_arrival_time);
+		} else {
+			num = (int)Math.ceil((1000.0 / inter_arrival_time) * 2.0 / 3.0);
+		}
+		System.out.println("boost extra servers: " + num);
 		return num;
 	}
 
@@ -332,15 +338,14 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
-		SL.shutDown();
 		System.out.println("SHUTDOWN: " + vmid);
+		SL.endVM(vmid);
 		return 0;
 	}
 
 
 
 	public int scale_in(int server_type, int vmid) throws RemoteException {
-		System.out.println("SHUTDOWN: " + vmid);
 		if (server_type == 0) {
 			if (frontend_servers.containsKey(vmid)) {
 				frontend_servers.remove(vmid);
