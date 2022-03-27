@@ -18,13 +18,13 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	
 	public static String master_name = "/MAIN_SERVER";
 
-	public static final int INIT_FRONTEND = 0;
+	public static int INIT_FRONTEND = 0;
 
 	public static final int INIT_APPTIER = 1;
 
 	public static ServerLib SL;
 
-	public static final int FRONT_THROUGHPUT = 0;
+	public static final int FRONT_THROUGHPUT = 6;
 
 	public static final double APP_THROUGHPUT = 1.5;
 
@@ -99,6 +99,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 			Cloud.FrontEndOps.Request req = SL.getNextRequest();
 			try {
 				master.add_request(req);
+				// 60~150 ms
 				System.out.println("FRONTEND Process time: " + (System.currentTimeMillis() - t1));
 			} catch (RemoteException e) {
 				System.err.println("run_frontend(): add_request() exeception");
@@ -117,20 +118,25 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 				long t1 = System.currentTimeMillis();
 				req = master.get_request();
 				if (req == null) {
+					System.out.println("NULL REQ");
 					miss_count += 1;
 					if (miss_count == APP_SCALEIN_THREASHOLD) {
-						remove_server(master, VMID, 1);
+						// remove_server(master, VMID, 1);
 						miss_count = 0;
 					}
 				} else {
 					miss_count = 0;
 				}
 				if (master.check_app_status() == 1) {
+					System.out.println("INSIDE, DROP_COUNT: " + drop_count);
+
 					if (req != null) {
+						System.out.println("HIT AND DROP");
 						SL.drop(req);
 						drop_count += 1;
 					}
 					if (drop_count > APP_SCALEOUT_THRESHOLD) {
+						System.out.println("HIT ONCE!!!");
 						master.scale_out(1);
 						drop_count = 0;
 					}
@@ -139,6 +145,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 						SL.processRequest(req);
 						long t2 = System.currentTimeMillis();
 						long t = t2 - t1;
+						// Average process time: 250~300
 						System.out.println("APP TIER Process time: " + t);
 						drop_count = 0;
 					}
@@ -224,8 +231,11 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		int num = 0;
 		if (inter_arrival_time >= 400) {
 			num = (1000 / inter_arrival_time);
-		} else {
+		} else if (inter_arrival_time >= 200) {
 			num = (int)Math.ceil((1000.0 / inter_arrival_time) * 2.0 / 3.0);
+		} else {
+			num = (int)Math.ceil((1000.0 / inter_arrival_time) / 2);
+			INIT_FRONTEND = 1;
 		}
 		System.out.println("boost extra servers: " + num);
 		return num;
@@ -386,6 +396,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	public int check_app_status() throws RemoteException {
 		if (request_queue.size() > APP_THROUGHPUT * app_servers.size()) {
+			System.out.println("HIT THOUGHPUT THRESHOLD");
 			// SL.dropHead();
 			return 1;
 		} else {
@@ -434,6 +445,9 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		// master != null indicates non-master servers
 		if (master != null) {
 			int role_flag = master.get_role(VMID);
+			while (role_flag == -1) {
+				role_flag = master.get_role(VMID);
+			}
 			System.out.println(role_flag);
 			if (role_flag == 0) {
 				SL.register_frontend();
