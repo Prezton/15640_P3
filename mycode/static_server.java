@@ -4,6 +4,7 @@ import java.rmi.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.*;
 
+
 public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	// Request queue, maintained by master server
@@ -17,15 +18,19 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	
 	public static String master_name = "/MAIN_SERVER";
 
-	public static final int INIT_FRONTEND = 3;
+	public static int INIT_FRONTEND = 5;
 
-	public static final int INIT_APPTIER = 4;
+	public static final int INIT_APPTIER = 8;
 
 	public static ServerLib SL;
 
-	public static final int FRONT_THROUGHPUT = 0;
+	public static final int FRONT_THROUGHPUT = 6;
 
-	public static final double APP_THROUGHPUT = 1.70;
+	public static final double APP_THROUGHPUT = 1.3;
+
+	public static final int APP_SCALEOUT_THRESHOLD = 3;
+
+	public static final int APP_SCALEIN_THREASHOLD = 5;
 
 
 	// Server load: request per server
@@ -74,13 +79,10 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	}
 
 	public static int boost_servers() {
-		// app_servers.put(SL.startVM(), true);
-		// int num_app = get_init_app();
-		// System.out.println("Estimated app servers: " + num_app);
+		app_servers.put(SL.startVM(), true);
 		for (int i = 0; i < INIT_APPTIER; i++) {
 			app_servers.put(SL.startVM(), true);
 		}
-
 		for (int i = 0; i < INIT_FRONTEND; i++) {
 			frontend_servers.put(SL.startVM(), true);
 		}
@@ -88,13 +90,14 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	}
 
 
-	public static void run_frontend(MasterInterface master) {
+	public static void run_frontend(MasterInterface master, int VMID) {
 		System.out.println("FRONTEND WORKING PROPERLY");
 		while (true) {
 			long t1 = System.currentTimeMillis();
 			Cloud.FrontEndOps.Request req = SL.getNextRequest();
 			try {
 				master.add_request(req);
+				// 60~150 ms
 				System.out.println("FRONTEND Process time: " + (System.currentTimeMillis() - t1));
 			} catch (RemoteException e) {
 				System.err.println("run_frontend(): add_request() exeception");
@@ -104,38 +107,139 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		}
 	}
 
-	public static void run_apptier(MasterInterface master) {
+	public static void run_apptier(MasterInterface master, int VMID) {
+		int drop_count = 0;
+		int miss_count = 0;
+		long previous_time = 3500;
 		while (true) {
+
 			Cloud.FrontEndOps.Request req = null;
 			try {
 				long t1 = System.currentTimeMillis();
 				req = master.get_request();
-				if (req != null) {
-					SL.processRequest(req);
-					long t2 = System.currentTimeMillis();
-					long t = t2 - t1;
-					System.out.println("APP TIER Process time: " + t);
+				if (req == null) {
+					// try {
+					// 	boolean scalein_flag = master.decide_scalein();
+					// } catch (RemoteException e) {
+					// 	e.printStackTrace();
+					// }
+					// if (scalein_flag) {
+					// 	if (System.currentTimeMillis() - previous_time > 4000) {
+					// 		remove_server(master, vmid, 1);
+					// 		previous_time = System.currentTimeMillis();
+					// 	}
+					// } 
+				} else {
+					if (master.check_app_status() == 1) {
+						System.out.println("HIT AND DROP" + drop_count);
+						SL.drop(req);
+						// drop_count += 1;
+						// if (drop_count >= APP_SCALEOUT_THRESHOLD) {
+						// 	// if (System.currentTimeMillis() - previous_time > 3500) {
+						// 		// master.scale_out(1);
+						// 		drop_count = 0;
+						// 		previous_time = System.currentTimeMillis();
+						// 	// }
+						// }
+					} else {
+						SL.processRequest(req);
+						long t2 = System.currentTimeMillis();
+						long t = t2 - t1;
+						// Average process time: 250~300
+						System.out.println("APP TIER Process time: " + t);
+						// drop_count = 0;
+					}
 				}
 
 			} catch (RemoteException e) {
 				// System.err.println("run_apptier(): get_request() exeception");
 				// e.printStackTrace();
 			}
-
 		}
-
 	}
+
 
 	public static void run_master() {
 		System.out.println("MASTER WORKING PROPERLY");
-		while (SL.getStatusVM​(2) != Cloud.CloudOps.VMStatus.Running) {
-			SL.dropHead();
-		}
-		while (true) {
+		long previous_time = 0;
+		long test_mark1 = System.currentTimeMillis();
 
-			Cloud.FrontEndOps.Request req = SL.getNextRequest();
-			request_queue.offer(req);
+		// This booting takes ~5 second, 500 ms: 3 app servers, 300 ms 4 app servers
+		while (SL.getStatusVM(2) == Cloud.CloudOps.VMStatus.Booting) {
+			// if (SL.getQueueLength() > app_servers.size()) {
+			// 	SL.dropHead();
+			// } else {
+			// 	Cloud.FrontEndOps.Request req = SL.getNextRequest();
+			// 	SL.processRequest(req);
+			// }
+			SL.dropHead();
+
+			// count += 1;
+			// System.out.println("COUNTIS: " + count);
+
+			// if (count > 4) {
+
+			// 	long current_time = System.currentTimeMillis();
+			// 	// COOLDOWN MECHANISM
+			// 	// if (current_time - previous_time > 4000) {
+			// 		System.out.println("BOOTING: " + (APP_THROUGHPUT * app_servers.size()));
+			// 		add_apptier();
+			// 		new_servers += 1;
+			// 		previous_time = current_time;
+			// 	// }
+			// 	count = 0;
+			// }
+		}
+		System.out.println("BOOT TIME: " + (System.currentTimeMillis() - test_mark1));
+		long t1, t2, arrival_time, inter_arrival_time;
+		arrival_time = 0;
+		int count = 0;
+		double num = 0;
+		t1 = System.currentTimeMillis();
+		while (true) {
 			
+			t2 = System.currentTimeMillis() - t1;
+			t1 = System.currentTimeMillis();
+			Cloud.FrontEndOps.Request req = SL.getNextRequest();
+
+			request_queue.offer(req);
+			arrival_time += t2;
+			count += 1;
+			System.out.println("QUEUE SIZE: " + request_queue.size());
+
+			if (count >= 10) {
+				inter_arrival_time = arrival_time / count / frontend_servers.size();
+				num = 1000.0 / inter_arrival_time;
+				System.out.println("INTER ARRIVAL TIME IS:" + inter_arrival_time + ", num is: " + num + ", app server is:" + app_servers.size());
+				arrival_time = 0;
+				count = 0;
+				if (num > app_servers.size() * 3.0) {
+					add_apptier();
+					num = 0;
+				}
+				else if (num < (app_servers.size() * 2.0 / 3.0)) {
+					if (remove_app_server()) {
+						System.out.println("REMOVED APP SERVER");
+					}
+				}
+			}
+			else if (arrival_time >= 2000) {
+				inter_arrival_time = arrival_time / count / frontend_servers.size();
+				num = 1000.0 / inter_arrival_time;
+				System.out.println("INTER ARRIVAL TIME IS:" + inter_arrival_time + ", num is: " + num + ", app server is:" + app_servers.size());
+				arrival_time = 0;
+				count = 0;
+				if (num > app_servers.size() * 3.0) {
+					add_apptier();
+					num = 0;
+				}
+				else if (num < (app_servers.size() * 2.0 / 3.0)) {
+					if (remove_app_server()) {
+						System.out.println("REMOVED APP SERVER");
+					}
+				}
+			}
+
 		}
 	}
 
@@ -144,26 +248,34 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		int count = 0;
 		long time = 0;
 		// Have the master server act as both frontend and app tier at the beginning to reduce timeout requests
-		while (SL.getStatusVM​(2) != Cloud.CloudOps.VMStatus.Running) {
+
+		if (SL.getStatusVM(2) != Cloud.CloudOps.VMStatus.Running) {
+			Cloud.FrontEndOps.Request req1 = SL.getNextRequest();
 			long t1 = System.currentTimeMillis();
-			Cloud.FrontEndOps.Request req = SL.getNextRequest();
-			time += (System.currentTimeMillis() - t1);
-			// SL.processRequest(req);
+			Cloud.FrontEndOps.Request req2 = SL.getNextRequest();
+			long t2 = System.currentTimeMillis();
 			count += 1;
-			SL.dropHead();
+			time += (t2 - t1);
 		}
+
 
 		// time = 1820, count = 7, time = 1828, count = 7, time = 1838, count = 7
 		int inter_arrival_time = (int)time / count;
+		System.out.println(count + ", " + time + ", inter_arrival_time is: " + inter_arrival_time);
 
-		int num = (1000 / inter_arrival_time) * 2 / 3;
-
+		int num = 0;
+		if (inter_arrival_time >= 400) {
+			num = (1000 / inter_arrival_time);
+		} else if (inter_arrival_time >= 200) {
+			num = (int)Math.ceil((1000.0 / inter_arrival_time) * 2.0 / 3.0);
+		} else {
+			num = (int)(1000.0 / inter_arrival_time / 2);
+			INIT_FRONTEND = 1;
+		}
+		System.out.println("boost extra servers: " + num);
 		return num;
 	}
 
-	public static int scale_out() {
-		return 0;
-	}
 
 	public static int scale_back() {
 		return 0;
@@ -171,13 +283,14 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	public static boolean add_frontend() {
 		int new_vmid = SL.startVM();
+		System.out.println("Master add a new FRONTEND SERVER" + new_vmid);
 		frontend_servers.put(new_vmid, true);
 		return true;
 	}
 
 	public static boolean add_apptier() {
-		System.out.println("ADD A NEW APP TIER SERVER");
 		int new_vmid = SL.startVM();
+		System.out.println("Master add a new APP SERVER" + new_vmid);
 		app_servers.put(new_vmid, true);
 		return true;
 	}
@@ -233,35 +346,120 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	// 	}
 	// }
 
-	// /**
-    //  * @brief Add server to master's state map, executed by master server. NOTE: not responsible for SL.endVM()
-    //  * @param vmid server vm id
-	//  * @param server_type 0 for frontend, 1 for app tier
-    //  */
-	// public void remove_server(int vmid, int int server_type) throws RemoteException {
-	// 	if (server_type == 0) {
-	// 		if (frontend_servers.containsKey(vmid)) {
-	// 			frontend_servers.remove(vmid);
-	// 		}
-	// 	} else if (server_type == 1) {
-	// 		if (app_servers.containsKey(vmid)) {
-	// 			app_servers.remove(vmid);
-	// 		}
-	// 	}
-	// }
+	/**
+     * @brief Add server to master's state map, executed by master server. NOTE: not responsible for SL.endVM()
+     * @param vmid server vm id
+	 * @param server_type 0 for frontend, 1 for app tier
+     */
+	public static int remove_server(MasterInterface master, int vmid, int server_type) {
+		if (server_type == 0) {
+			int frontend_num = 0;
+			try {
+ 				frontend_num = master.get_frontend_num();
+			} catch (RemoteException e) {
+				e.printStackTrace();
+			}
+			if (frontend_num <= 1) {
+				return -1;
+			}
+			SL.interruptGetNext();
+			SL.unregister_frontend();
 
-	// /**
-    //  * @brief scale out by calling startVM()
-	//  * @param server_type 0 for frontend, 1 for app tier
-    //  */
-	// public void scale_out(int server_type) throws RemoteException {
-	// 	int vmid = SL.startVM();
-	// 	if (server_type == 0) {
-	// 		frontend_servers.put(vmid, true);
-	// 	} else {
-	// 		app_servers.put(vmid, true)
-	// 	}
-	// }
+		} else if (server_type == 1) {
+			int app_num = 0;
+			try {
+				app_num = master.get_app_num();
+			} catch (RemoteException e) {
+				e.printStackTrace();
+			}
+			if (app_num <= 1) {
+				return -1;
+			}
+		}
+		try {
+			master.scale_in(server_type, vmid);
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		}
+		System.out.println("SHUTDOWN: " + vmid);
+		SL.endVM(vmid);
+		return 0;
+	}
+
+	public static boolean remove_app_server() {
+		int upper = app_servers.size();
+		if (upper < 2) {
+			return false;
+		}
+		upper += 1;
+		int removed = -1;
+		for (int i = upper; i > 1; i --) {
+			if (app_servers.containsKey(i)) {
+				if (SL.getStatusVM(i) == Cloud.CloudOps.VMStatus.Running) {
+					SL.endVM(i);
+					app_servers.remove(i);
+					removed = i;
+					return true;
+				}
+			}
+		}
+		if (removed == -1) {
+			return false;
+		}
+		return true;
+	}
+
+
+
+	public int scale_in(int server_type, int vmid) throws RemoteException {
+		if (server_type == 0) {
+			if (frontend_servers.containsKey(vmid)) {
+				frontend_servers.remove(vmid);
+				return 0;
+			}
+
+		} else if (server_type == 1) {
+			if (app_servers.containsKey(vmid)) {
+				app_servers.remove(vmid);
+				return 0;
+			}
+		}
+		return -1;
+	}
+
+	public int get_app_num() throws RemoteException {
+		return app_servers.size();
+	}
+
+	public int get_frontend_num() throws RemoteException {
+		return frontend_servers.size();
+	}
+
+	/**
+     * @brief scale out by calling startVM()
+	 * @param server_type 0 for frontend, 1 for app tier
+     */
+	public void scale_out(int server_type) throws RemoteException {
+
+		int vmid = SL.startVM();
+		if (server_type == 0) {
+			frontend_servers.put(vmid, true);
+		} else {
+			System.out.println("MASTER SCALING OUT APP TIER");
+			app_servers.put(vmid, true);
+		}
+	}
+
+	public int check_app_status() throws RemoteException {
+		if (request_queue.size() > APP_THROUGHPUT * app_servers.size()) {
+			System.out.println("HIT THOUGHPUT THRESHOLD");
+			// SL.dropHead();
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+
 
 
 	public static void main ( String args[] ) throws Exception {
@@ -295,7 +493,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		} else {
 			// register master server as frontend
 			SL.register_frontend();
-			frontend_servers.put(VMID, true);
+			frontend_servers.put(VMID, false);
 			System.out.println("MASTER BOOST SERVERS");
 			boost_servers();
 		}
@@ -303,12 +501,15 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		// master != null indicates non-master servers
 		if (master != null) {
 			int role_flag = master.get_role(VMID);
+			while (role_flag == -1) {
+				role_flag = master.get_role(VMID);
+			}
 			System.out.println(role_flag);
 			if (role_flag == 0) {
 				SL.register_frontend();
-				run_frontend(master);
+				run_frontend(master, VMID);
 			} else if (role_flag == 1) {
-				run_apptier(master);
+				run_apptier(master, VMID);
 			}
 		} else {
 			run_master();
@@ -328,4 +529,3 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	}
 }
-
