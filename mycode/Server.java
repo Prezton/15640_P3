@@ -251,6 +251,18 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		}
 	}
 
+	private static class Handle_first_req implements Runnable {
+		private Cloud.FrontEndOps.Request req;
+		private ServerLib SL;
+		public Handle_first_req(Cloud.FrontEndOps.Request req, ServerLib SL) {
+			this.req = req;
+			this.SL = SL;
+		}
+		public void run() {
+			SL.processRequest(this.req);
+		}
+	}
+
 	public static int get_init_app() {
 
 		int count = 0;
@@ -260,8 +272,13 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		if (SL.getStatusVM(2) != Cloud.CloudOps.VMStatus.Running) {
 			Cloud.FrontEndOps.Request req1 = SL.getNextRequest();
 			long t1 = System.currentTimeMillis();
+			long prev = System.currentTimeMillis();
+			(new Thread(new Handle_first_req(req1, SL))).start();
+			System.out.println("processReq time is: "+ (System.currentTimeMillis() - prev));
 			Cloud.FrontEndOps.Request req2 = SL.getNextRequest();
 			long t2 = System.currentTimeMillis();
+			SL.processRequest(req2);
+
 			count += 1;
 			time += (t2 - t1);
 		}
