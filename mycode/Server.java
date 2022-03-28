@@ -174,7 +174,14 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 		// This booting takes ~5 second, 500 ms: 3 app servers, 300 ms 4 app servers
 		while (SL.getStatusVM(2) == Cloud.CloudOps.VMStatus.Booting) {
+			// if (SL.getQueueLength() > app_servers.size()) {
+			// 	SL.dropHead();
+			// } else {
+			// 	Cloud.FrontEndOps.Request req = SL.getNextRequest();
+			// 	SL.processRequest(req);
+			// }
 			SL.dropHead();
+
 			// count += 1;
 			// System.out.println("COUNTIS: " + count);
 
