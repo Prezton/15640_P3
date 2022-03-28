@@ -116,9 +116,6 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 	}
 
 	public static void run_apptier(MasterInterface master, int VMID) {
-		int drop_count = 0;
-		int miss_count = 0;
-		long previous_time = 3500;
 		while (true) {
 
 			Cloud.FrontEndOps.Request req = null;
@@ -126,36 +123,16 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 				long t1 = System.currentTimeMillis();
 				req = master.get_request();
 				if (req == null) {
-					// try {
-					// 	boolean scalein_flag = master.decide_scalein();
-					// } catch (RemoteException e) {
-					// 	e.printStackTrace();
-					// }
-					// if (scalein_flag) {
-					// 	if (System.currentTimeMillis() - previous_time > 4000) {
-					// 		remove_server(master, vmid, 1);
-					// 		previous_time = System.currentTimeMillis();
-					// 	}
-					// } 
+
 				} else {
 					if (master.check_app_status() == 1) {
-						System.out.println("HIT AND DROP" + drop_count);
 						SL.drop(req);
-						// drop_count += 1;
-						// if (drop_count >= APP_SCALEOUT_THRESHOLD) {
-						// 	// if (System.currentTimeMillis() - previous_time > 3500) {
-						// 		// master.scale_out(1);
-						// 		drop_count = 0;
-						// 		previous_time = System.currentTimeMillis();
-						// 	// }
-						// }
 					} else {
 						SL.processRequest(req);
 						long t2 = System.currentTimeMillis();
 						long t = t2 - t1;
 						// Average process time: 250~300
 						System.out.println("APP TIER Process time: " + t);
-						// drop_count = 0;
 					}
 				}
 
@@ -174,30 +151,9 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 		// This booting takes ~5 second, 500 ms: 3 app servers, 300 ms 4 app servers
 		while (SL.getStatusVM(2) == Cloud.CloudOps.VMStatus.Booting) {
-			// if (SL.getQueueLength() > app_servers.size()) {
-			// 	SL.dropHead();
-			// } else {
-			// 	Cloud.FrontEndOps.Request req = SL.getNextRequest();
-			// 	SL.processRequest(req);
-			// }
 			SL.dropHead();
-
-			// count += 1;
-			// System.out.println("COUNTIS: " + count);
-
-			// if (count > 4) {
-
-			// 	long current_time = System.currentTimeMillis();
-			// 	// COOLDOWN MECHANISM
-			// 	// if (current_time - previous_time > 4000) {
-			// 		System.out.println("BOOTING: " + (APP_THROUGHPUT * app_servers.size()));
-			// 		add_apptier();
-			// 		new_servers += 1;
-			// 		previous_time = current_time;
-			// 	// }
-			// 	count = 0;
-			// }
 		}
+		
 		System.out.println("BOOT TIME: " + (System.currentTimeMillis() - test_mark1));
 		long t1, t2, arrival_time, inter_arrival_time;
 		arrival_time = 0;
@@ -301,11 +257,6 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		return num;
 	}
 
-
-	public static int scale_back() {
-		return 0;
-	}
-
 	public static boolean add_frontend() {
 		int new_vmid = SL.startVM();
 		System.out.println("Master add a new FRONTEND SERVER" + new_vmid);
@@ -354,22 +305,6 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		request_queue.offer(req);
 	}
 
-	// /**
-    //  * @brief Add server to master's state map, executed by master server. NOTE: not responsible for SL.startVM()
-    //  * @param vmid server vm id
-	//  * @param server_type 0 for frontend, 1 for app tier
-    //  */
-	// public void add_server(int vmid, int server_type) throws RemoteException {
-	// 	if (server_type == 0) {
-	// 		if (!frontend_servers.containsKey(vmid)) {
-	// 			frontend_servers.put(vmid, true);
-	// 		}
-	// 	} else if (server_type == 1) {
-	// 		if (!app_servers.containsKey(vmid)) {
-	// 			app_servers.put(vmid, true);
-	// 		}
-	// 	}
-	// }
 
 	/**
      * @brief Add server to master's state map, executed by master server. NOTE: not responsible for SL.endVM()
@@ -539,18 +474,6 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		} else {
 			run_master();
 		}
-
-
-		
-		// register with load balancer so requests are sent to this server
-		// Frontend operation to register this Server with the load balancer and start receiving client requests.
-		// SL.register_frontend();
-		
-		// // main loop
-		// while (true) {
-		// 	Cloud.FrontEndOps.Request r = SL.getNextRequest();
-		// 	SL.processRequest( r );
-		// }
 
 	}
 }
