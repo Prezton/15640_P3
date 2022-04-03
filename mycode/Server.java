@@ -150,7 +150,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 						long t2 = System.currentTimeMillis();
 						long t = t2 - t1;
 						// Average process time: 250~300
-						// System.out.println("APP TIER Process time: " + t);
+						System.out.println("APP TIER Process time: " + t);
 					}
 				}
 
@@ -178,7 +178,8 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 		int count = 0;
 		double num = 0;
 		t1 = System.currentTimeMillis();
-		int frontend_count = 0;
+		int frontend_flag = 0;
+		int frontend_removal_flag = 0;
 		while (true) {
 			
 			t2 = System.currentTimeMillis() - t1;
@@ -196,7 +197,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 				System.out.println("INTER ARRIVAL TIME IS:" + inter_arrival_time + ", num is: " + num + ", app server is:" + app_servers.size());
 				arrival_time = 0;
 				count = 0;
-				if (num > app_servers.size() * 3.1) {
+				if (num > app_servers.size() * 3.15) {
 					add_apptier();
 					num = 0;
 				}
@@ -206,15 +207,19 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 					num = 0;
 				}
 				if (inter_arrival_time <= 150) {
-					frontend_count += 1;
-					if ((frontend_count >= 3) && (frontend_servers.size() < 3)) {
+					frontend_flag += 1;
+					if ((frontend_flag >= 3) && (frontend_servers.size() < 2) && (app_servers.size() >= 4)) {
 						add_frontend();
-						frontend_count = 0;
+						frontend_flag = 0;
 					}
 				}
 				else if (inter_arrival_time > 1000 && frontend_servers.size() > 1) {
-					// remove_frontend();
-					System.out.println("triggerred frontend removal");
+					frontend_removal_flag += 1;
+					if (frontend_removal_flag >= 3) {
+						// remove_frontend();
+						System.out.println("triggerred frontend removal");
+						frontend_removal_flag = 0;
+					}
 				}
 			}
 			else if (arrival_time >= 2000) {
@@ -223,7 +228,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 				System.out.println("INTER ARRIVAL TIME IS:" + inter_arrival_time + ", num is: " + num + ", app server is:" + app_servers.size());
 				arrival_time = 0;
 				count = 0;
-				if (num > app_servers.size() * 3.1) {
+				if (num > app_servers.size() * 3.15) {
 					add_apptier();
 					num = 0;
 				}
@@ -233,16 +238,20 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 					num = 0;
 				}
 				if (inter_arrival_time <= 150) {
-					frontend_count += 1;
-					if ((frontend_count >= 3) && (frontend_servers.size() < 3)) {
+					frontend_flag += 1;
+					if ((frontend_flag >= 3) && (frontend_servers.size() < 2) && (app_servers.size() >= 4)) {
 						add_frontend();
-						frontend_count = 0;
+						frontend_flag = 0;
 					}
 
 				}
 				else if (inter_arrival_time > 1000 && frontend_servers.size() > 1) {
-					// remove_frontend();
-					System.out.println("triggerred frontend removal");
+					frontend_removal_flag += 1;
+					if (frontend_removal_flag >= 3) {
+						// remove_frontend();
+						System.out.println("triggerred frontend removal");
+						frontend_removal_flag = 0;
+					}
 				}
 			}
 
@@ -489,7 +498,7 @@ public class Server extends UnicastRemoteObject implements MasterInterface {
 
 	public static int open_cache() {
 		try {
-			cache = new Cache(SL.getDB());
+			cache = new Cache(SL);
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		}
