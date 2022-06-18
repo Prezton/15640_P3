@@ -1,4 +1,9 @@
-This provides the classes needed for Project 3.
+
+The most important feature AWS EC2 ever provided is its load-balancing ability. It allows clusters to automatically scale up or scale down by adding/ killing instances.
+
+This is a distributed web server which emulated the behavior of cloud servers. The system contains 3 tiers, and is able to scale according to the current QPS.
+
+Key word: Scalbility, System Hierarchy.
 
 The main classes (Cloud, ServerLib, Database, ClientSim) and the sample
 database file (db1.txt) are in the lib directory.  
@@ -13,6 +18,3 @@ This will launch the "Cloud" service, load the database with the items in
 lib/db1.txt, and start simulating clients arriving at a constant rate every
 2000 ms.  A single instance of the sample Server will b erun as a "VM" 
 (actually a spearate process).  
-
-See the handout pdf for more details.
-
