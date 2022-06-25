@@ -1,7 +1,6 @@
+This is a distributed web server which emulated the behavior of cloud servers. The system contains 4 tiers, and is able to scale according to the current QPS.
 
 The most important feature AWS EC2 ever provided is its load-balancing ability. It allows clusters to automatically scale up or scale down by adding/ killing instances.
-
-This is a distributed web server which emulated the behavior of cloud servers. The system contains 3 tiers, and is able to scale according to the current QPS.
 
 Key word: Scalbility, System Hierarchy.
 
